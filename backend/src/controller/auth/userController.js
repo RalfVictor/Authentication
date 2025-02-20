@@ -34,7 +34,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   //send token
 
-  res.cookie("Token", token, {
+  res.cookie("token", token, {
     path: "/",
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -77,9 +77,8 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   //check is password matches
 
-  const ismatch = await bcrypt.compare(password, userExist.password);
-
   if (!ismatch) {
+    //400 error
     return res.status(400).json({ message: "Invalid Credentials" });
   }
   //generate token with user id
@@ -110,4 +109,10 @@ export const loginUser = asyncHandler(async (req, res) => {
   } else {
     res.status(400).json({ message: "Invalid email or password Data" });
   }
+});
+
+//logout user
+export const logoutUser = asyncHandler(async (req, res) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "User logged out" });
 });
