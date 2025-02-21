@@ -6,45 +6,52 @@ import bcrypt from "bcrypt";
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
+  //validation
   if (!name || !email || !password) {
-    //400 Bad request
+    // 400 Bad Request
     res.status(400).json({ message: "All fields are required" });
   }
-  const n = password.length;
-  //check password length
-  if (n < 6) {
+
+  // check password length
+  if (password.length < 6) {
     return res
       .status(400)
-      .json({ message: "Password must be of atleast 6 characters" });
+      .json({ message: "Password must be at least 6 characters" });
   }
 
-  //check if user already exist
+  // check if user already exists
   const userExists = await User.findOne({ email });
+
   if (userExists) {
-    return res.status(400).json({ message: "User already Exists." });
+    // bad request
+    return res.status(400).json({ message: "User already exists" });
   }
 
+  // create new user
   const user = await User.create({
     name,
     email,
     password,
   });
 
+  // generate token with user id
+  console.log(user._id);
   const token = generateToken(user._id);
+  console.log(token);
 
-  //send token
-
+  // send back the user and token in the response to the client
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    sameSite: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    sameSite: "none", // cross-site access --> allow all third-party cookies
+    secure: true,
   });
-
-  console.log(token);
 
   if (user) {
     const { _id, name, email, role, photo, bio, isVerified } = user;
+
+    // 201 Created
     res.status(201).json({
       _id,
       name,
@@ -56,47 +63,55 @@ export const registerUser = asyncHandler(async (req, res) => {
       token,
     });
   } else {
-    res.status(400);
-    throw new Error("Invalid user data");
+    res.status(400).json({ message: "Invalid user data" });
   }
 });
 
+// user login
 export const loginUser = asyncHandler(async (req, res) => {
-  //get email from body
+  // get email and password from req.body
   const { email, password } = req.body;
+
+  // validation
   if (!email || !password) {
-    //400 bad request
-    return res.status(400).json({ message: "All the fields are required" });
+    // 400 Bad Request
+    return res.status(400).json({ message: "All fields are required" });
   }
 
-  const userExist = await User.findOne({ email });
+  // check if user exists
+  const userExists = await User.findOne({ email });
 
-  if (!userExist) {
-    return res.status(400).json({ message: "User not found. Sign Up" });
+  if (!userExists) {
+    return res.status(404).json({ message: "User not found, sign up!" });
   }
 
-  //check is password matches
+  // check id the password match the hashed password in the database
+  const isMatch = await bcrypt.compare(password, userExists.password);
 
-  if (!ismatch) {
-    //400 error
-    return res.status(400).json({ message: "Invalid Credentials" });
+  if (!isMatch) {
+    // 400 Bad Request
+    return res.status(400).json({ message: "Invalid credentials" });
   }
-  //generate token with user id
-  const token = generateToken(userExist._id);
 
-  if (userExist && ismatch) {
-    const { _id, name, email, role, photo, bio, isVerified } = userExist;
-    //set token in the cookie
+  // generate token with user id
+  console.log(userExists._id);
+  const token = generateToken(userExists._id);
+  console.log(token);
+
+  if (userExists && isMatch) {
+    const { _id, name, email, role, photo, bio, isVerified } = userExists;
+
+    // set the token in the cookie
     res.cookie("token", token, {
       path: "/",
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      sameSite: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: "none", // cross-site access --> allow all third-party cookies
       secure: true,
     });
 
-    //sendback the user and token in response to the client
-    res.status(201).json({
+    // send back the user and token in the response to the client
+    res.status(200).json({
       _id,
       name,
       email,
@@ -106,13 +121,57 @@ export const loginUser = asyncHandler(async (req, res) => {
       isVerified,
       token,
     });
-  } else {
-    res.status(400).json({ message: "Invalid email or password Data" });
   }
 });
 
-//logout user
+// logout user
 export const logoutUser = asyncHandler(async (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+    path: "/",
+  });
+
   res.status(200).json({ message: "User logged out" });
+});
+
+// get user
+export const getUser = asyncHandler(async (req, res) => {
+  // get user details from the token ----> exclude password
+  const user = await User.findById(req.user._id).select("-password");
+
+  if (user) {
+    res.status(200).json(user);
+  } else {
+    // 404 Not Found
+    res.status(404).json({ message: "User not found" });
+  }
+});
+
+export const updateUser = asyncHandler(async (req, res) => {
+  //get user details from token -> protect middleware
+  const user = await User.findById(req.user._id).select("-password");
+  if (user) {
+    //update user properties\
+    const { name, bio, photo } = req.body;
+    //update user properties
+    user.name = req.body.name || req.name;
+    user.bio = req.body.bio || req.bio;
+    user.photo = req.body.photo || req.photo;
+
+    const updated = await user.save();
+
+    res.status(200).json({
+      _id: updated._id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      photo: updated._id,
+      bio: updated.bio,
+      isVerified: updated.isVerified,
+    });
+  } else {
+    res.status(404).json({ message: "User Not Found" });
+  }
 });
