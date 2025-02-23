@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import Token from "../../models/auth/Token.js";
 import crypto from "node:crypto";
 import hashToken from "../../helpers/hashToken.js";
-import { link } from "node:fs";
+import { link, rmSync } from "node:fs";
 import sendEmail from "../../helpers/sendEmail.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
@@ -350,4 +350,57 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     console.log("Error sending email: ", error);
     return res.status(500).json({ message: "Email could not be sent" });
   }
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { resetPasswordToken } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ message: "Enter Password" });
+  }
+
+  //hash reset token
+  const hashedToken = hashToken(resetPasswordToken);
+
+  //check id token exist
+
+  const userToken = await Token.findOne({
+    passwordResetToken: hashedToken,
+    //check expiry
+    expiresAt: { $gt: Date.now() },
+  });
+
+  if (!userToken) {
+    return res.status(400).json({ message: "Invalid or Expired reset Token" });
+  }
+
+  const user = await User.findById(userToken.userId);
+
+  //update password
+
+  user.password = password;
+
+  await user.save();
+  return res.status(200).json({ message: "Password Reset Succesfull" });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "All Fields are Requires!" });
+  }
+  //fnd user by id
+  const user = await User.findById(req.user._id);
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+  if (!isMatch) {
+    return res.status(400).json({ message: "Invalid Password" });
+  }
+
+  //resetpassword
+  user.password = newPassword;
+  await user.save();
+  return res.status(200).json({ message: "Password Changed Successfully" });
 });
