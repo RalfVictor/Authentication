@@ -3,6 +3,11 @@ import User from "../../models/auth/UserModel.js";
 import generateToken from "../../helpers/generateToken.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import Token from "../../models/auth/Token.js";
+import crypto from "node:crypto";
+import hashToken from "../../helpers/hashToken.js";
+import { link } from "node:fs";
+import sendEmail from "../../helpers/sendEmail.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
@@ -182,9 +187,104 @@ export const userLoginStatus = asyncHandler(async (req, res) => {
   if (!token) {
     return res.status(401).json({ message: "Not authorized. Please login" });
   }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded) {
-      res.status(200).json(true);
-    }
-    res.status(401).json(false);
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (decoded) {
+    res.status(200).json(true);
+  }
+  res.status(401).json(false);
+});
+
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not Found" });
+  }
+
+  //check verification
+  if (user.isVerified) {
+    return res.status(400).json({ message: "User already Verified" });
+  }
+
+  let token = await Token.findOne({ userId: user._id });
+
+  //is there delete the existing one
+  if (token) {
+    await token.deleteOne();
+  }
+
+  //create new token (verification) --> crypto
+  const verificationToken = crypto.randomBytes(64).toString("hex") + user._id;
+
+  //hash the verification token
+
+  const hashedToken = hashToken(verificationToken);
+
+  await new Token({
+    userId: user._id,
+    verificationToken: hashedToken,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+  }).save();
+
+  const verificationLink = `${process.env.CLIRNT_URL}/verify-email/${verificationToken}`;
+
+  //send email
+  const subject = "Email Verification - AuthKit";
+  const send_to = user.email;
+  const reply_to = "noreply@gmailcom";
+  const template = "emailVerification";
+  const send_from = process.env.USER_EMAIL;
+  const name = user.name;
+  const link = verificationLink;
+
+  try {
+    await sendEmail(
+      send_to,
+      send_from,
+      name,
+      subject,
+      template,
+      reply_to,
+      link
+    );
+    return res.status(200).json({ message: "Email Sent" });
+  } catch (error) {
+    console.log("Error sending email: ", error);
+    return res.status(500).json({ message: "Email could not be sent" });
+  }
+});
+
+//verify user
+
+export const verifyUser = asyncHandler(async (req, res) => {
+  const { verificationToken } = req.params;
+
+  if (!verificationToken) {
+    return res.status(400).json({ message: "Invalid Verificaton Token" });
+  }
+
+  const hashedToken = hashToken(verificationToken);
+
+  //find user
+  const userToken = await Token.findOne({
+    verificationToken: hashedToken,
+    //check expiry
+    expiresAt: { $gt: Date.now() },
+  });
+  if (!userToken) {
+    return res
+      .status(400)
+      .json({ message: "Invalid or expired verification Token" });
+  }
+  const user = await User.findById(userToken.userId);
+
+  if (user.isVerified) {
+    return res.status(400).json({ message: "User already Verified!" });
+  }
+
+  //update verification
+  user.isVerified = true;
+  await user.save();
+  res.status(200).json({ message: "User verified!" });
 });
