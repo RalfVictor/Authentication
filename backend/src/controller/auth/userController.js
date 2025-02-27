@@ -189,9 +189,9 @@ export const userLoginStatus = asyncHandler(async (req, res) => {
   }
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
   if (decoded) {
-    res.status(200).json(true);
+    return res.status(200).json(true);
   }
-  res.status(401).json(false);
+  return res.status(401).json(false);
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
