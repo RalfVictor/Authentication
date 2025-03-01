@@ -3,6 +3,7 @@
 import { useUserContext } from "@/context/UserContext";
 import useRedirect from "@/hooks/useuserRedirect";
 import { useState } from "react";
+import ChangePasswordForm from "./components/auth/changepasswordform/ChangePasswordForm";
 
 export default function Home() {
   useRedirect("/login");
@@ -13,6 +14,8 @@ export default function Home() {
     userState,
     updateUser,
     emailVerification,
+    deleteUser,
+    allUsers
   } = useUserContext();
   const { name, photo, isVerified, bio } = user;
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +29,7 @@ export default function Home() {
         className="flex
      justify-between"
       >
-        <h1 className="text-[2rem] font-bold">
+        <h1 className="text-[2rem]  font-bold">
           Welcome <span className="text-red-500">{name}</span>
         </h1>
         <div className="flex items-center gap-5">
@@ -52,7 +55,7 @@ export default function Home() {
         </div>
       </header>
       <section>
-        <p>{bio}</p>
+        <p className="text-[20px] ">{bio}</p>
         <h1>
           <button
             onClick={myToggle}
@@ -61,7 +64,7 @@ export default function Home() {
             Update Bio
           </button>
           {isOpen && (
-            <form className="max-w-[400px] w-full">
+            <div className="max-w-[400px] w-full">
               <div className="flex flex-col">
                 <label htmlFor="bio" className="mb1 txt-[#999]">
                   Bio
@@ -71,7 +74,7 @@ export default function Home() {
                   id=""
                   cols={8}
                   rows={4}
-                  className="border max-h-[150px] rounded-lg border-black"
+                  className="border max-h-[150px]  rounded-lg border-black"
                   defaultValue={bio}
                   onChange={(e) => handleUserInput("bio")(e)}
                 ></textarea>
@@ -85,10 +88,46 @@ export default function Home() {
               >
                 Confirm Update
               </button>
-            </form>
+            </div>
           )}
         </h1>
       </section>
+      <div className="flex gap-6">
+        <div className="flex-1">
+          <ChangePasswordForm />
+        </div>
+        <div className="flex-1">
+          {user.role === "admin" && (
+            <ul>
+              {allUsers.map(
+                (user: any, i: number) =>
+                  user.role !== "admin" && (
+                    <li
+                      key={i}
+                      className="mb-2 px-2 py-3 border grid grid-cols-4 items-center gap-8 rounded-md"
+                    >
+                      <img
+                        src={user.photo}
+                        alt={user.name}
+                        className="w-[40px]  h-[40px] rounded-full"
+                      />
+                      <p>{user.name}</p>
+                      <p>{user.bio}</p>
+                      <button
+                        className="bg-red-500 text-white p-2 rounded-md"
+                        onClick={() => {
+                          deleteUser(user._id);
+                        }}
+                      >
+                        Delete User
+                      </button>
+                    </li>
+                  )
+              )}
+            </ul>
+          )}
+        </div>
+      </div>
     </main>
   );
 }
