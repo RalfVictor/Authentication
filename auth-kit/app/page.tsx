@@ -6,8 +6,14 @@ import { useState } from "react";
 
 export default function Home() {
   useRedirect("/login");
-  const { logoutUser, user, handleUserInput, userState, updateUser } =
-    useUserContext();
+  const {
+    logoutUser,
+    user,
+    handleUserInput,
+    userState,
+    updateUser,
+    emailVerification,
+  } = useUserContext();
   const { name, photo, isVerified, bio } = user;
   const [isOpen, setIsOpen] = useState(false);
   const myToggle = () => {
@@ -30,7 +36,10 @@ export default function Home() {
             className="w-[40px] h-[40px] rounded-full"
           />
           {!isVerified ? (
-            <button className="px-4 py-2 font-bold bg-black text-white rounded-md">
+            <button
+              onClick={emailVerification}
+              className="px-4 py-2 font-bold bg-black text-white rounded-md"
+            >
               Verify Now
             </button>
           ) : null}

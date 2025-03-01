@@ -227,7 +227,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     expiresAt: Date.now() + 24 * 60 * 60 * 1000,
   }).save();
 
-  const verificationLink = `${process.env.CLIRNT_URL}/verify-email/${verificationToken}`;
+  const verificationLink = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
 
   //send email
   const subject = "Email Verification - AuthKit";

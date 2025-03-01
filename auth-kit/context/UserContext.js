@@ -155,6 +155,69 @@ export const UserContextProvider = ({ children }) => {
     }
   };
 
+  const emailVerification = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(
+        `${serverUrl}/api/v1/verify-email`,
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+      setLoading(false);
+      toast.success("Email Verification sent Successfully");
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+      toast.error(error.response.data.message);
+    }
+  };
+
+  //verify
+
+  const verifyUser = async (token) => {
+    setLoading(true);
+    try {
+      const res = await axios.patch(
+        `${serverUrl}/api/v1/verify-user/${token}`,
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+      toast.success("Email Verified");
+      getUser();
+      setLoading(false);
+      router.push("/");
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+      toast.error("Error");
+    }
+  };
+
+  const forgotPasswordEmail = async (email) => {
+    setLoading(true);
+    try {
+      const res = await axios.post(
+        `${serverUrl}/api/v1/forgot-password`,
+        {
+          email,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+      toast.success("Forgot Password Email Sent Succesfully");
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+      toast.error(error.response.data.message);
+    }
+  };
+
   useEffect(() => {
     const loginStatusGetUser = async () => {
       const isLoggedIn = await userLoginStatus();
@@ -177,6 +240,9 @@ export const UserContextProvider = ({ children }) => {
         logoutUser,
         userLoginStatus,
         updateUser,
+        emailVerification,
+        verifyUser,
+        forgotPasswordEmail,
       }}
     >
       {children}
